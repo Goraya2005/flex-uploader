@@ -8,6 +8,7 @@ python-dotenv
 pandas
 openpyxl
 xlrd
-
+langchain-community
+langchain-core
 
 # pip install fastapi uvicorn langchain langchain-community langchain-google-genai python-multipart dotenv
