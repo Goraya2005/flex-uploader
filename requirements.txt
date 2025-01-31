@@ -1,0 +1,13 @@
+
+fastapi
+uvicorn
+langchain
+langchain-google-genai
+pydantic
+python-dotenv
+pandas
+openpyxl
+xlrd
+
+
+# pip install fastapi uvicorn langchain langchain-community langchain-google-genai python-multipart dotenv

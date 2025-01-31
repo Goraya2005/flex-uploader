@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "gemini-rag"
+version = "0.1.0"
+description = ""
+authors = ["goraya2005 <goraya2005@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+langchain-community = "^0.3.3"
+fastapi = "^0.115.2"
+langchain = "^0.3.4"
+uvicorn = "^0.32.0"
+langchain-google-genai = "^2.0.1"
+python-multipart = "^0.0.12"
+python-dotenv = "^1.0.1"
+langchain-core = "^0.3.12"
+pandas = "^2.2.3"
+openpyxl = "^3.1.5"
+xlrd = "^2.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
