@@ -36,7 +36,7 @@ app = FastAPI()
 # Configure CORS to allow requests from the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Update with your frontend URL if different
+    allow_origins=["https://excel-frontend-amber.vercel.app/"],  # Update with your frontend URL if different
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
