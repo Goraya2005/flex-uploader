@@ -10,5 +10,9 @@ openpyxl
 xlrd
 langchain-community
 langchain-core
+python-multipart
+
+
+
 
 # pip install fastapi uvicorn langchain langchain-community langchain-google-genai python-multipart dotenv
