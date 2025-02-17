@@ -158,7 +158,7 @@ async def upload_file(file: UploadFile = File(...)):
 
         # Split text into smaller chunks
         try:
-            text_splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=100)
+            text_splitter = CharacterTextSplitter(chunk_size=700, chunk_overlap=100)
             logger.info("CharacterTextSplitter initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to initialize text splitter: {str(e)}")
