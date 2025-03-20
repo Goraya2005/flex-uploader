@@ -11,6 +11,7 @@ import shutil
 import tempfile
 import logging
 import pickle
+import uvicorn
 
 # ---------------------------
 # 1. Configuration and Setup
@@ -29,7 +30,7 @@ app = FastAPI()
 # Configure CORS (Allow Frontend to Access Backend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change to specific origin in production
+    allow_origins=["*"],  # Change to specific origins in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,8 +38,7 @@ app.add_middleware(
 
 # Load environment variables
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", 50))  # Default 50MB
-INDEX_FILE = "index.pkl"  # Persistent index storage
+PORT = int(os.getenv("PORT", 8000))  # Render dynamically assigns a port
 
 if not GOOGLE_API_KEY:
     logger.error("GOOGLE_API_KEY is missing in environment variables!")
@@ -52,14 +52,18 @@ except Exception as e:
     logger.error(f"Failed to initialize Google Generative AI: {e}")
     raise RuntimeError("Failed to initialize AI model.")
 
-# Load or Initialize Index
+# Persistent Index Storage
+INDEX_FILE = "index.pkl"
+
 def load_index():
+    """Load index from persistent storage."""
     if os.path.exists(INDEX_FILE):
         with open(INDEX_FILE, "rb") as f:
             return pickle.load(f)
     return None
 
 def save_index(index):
+    """Save index to persistent storage."""
     with open(INDEX_FILE, "wb") as f:
         pickle.dump(index, f)
 
@@ -89,12 +93,6 @@ async def upload_file(file: UploadFile = File(...)):
     tmp_path = None
     
     try:
-        # Check file size limit
-        file_size = file.file.seek(0, 2)  # Get file size
-        file.file.seek(0)  # Reset pointer
-        if file_size > MAX_FILE_SIZE_MB * 1024 * 1024:
-            raise HTTPException(status_code=400, detail=f"File size exceeds {MAX_FILE_SIZE_MB}MB limit.")
-
         # Save uploaded file temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
             shutil.copyfileobj(file.file, tmp)
@@ -141,3 +139,10 @@ async def query_index(request: QueryRequest):
     except Exception as e:
         logger.error(f"Query Error: {e}")
         raise HTTPException(status_code=500, detail="Error processing query.")
+
+# ---------------------------
+# 4. Start Server for Render Deployment
+# ---------------------------
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=PORT)
