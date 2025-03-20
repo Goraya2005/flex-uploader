@@ -16,3 +16,21 @@ python-multipart
 
 
 # pip install fastapi uvicorn langchain langchain-community langchain-google-genai python-multipart dotenv
+# pip install python-docx
+# pip install python-pptx
+# pip install PyPDF2
+# pip install openpyxl
+# pip install python-docx PyPDF2 python-pptx openpyxl
+
+
+# fastapi
+# uvicorn
+# langchain
+# langchain-community
+# langchain-google-genai
+# python-dotenv
+# pandas
+# python-docx
+# PyPDF2
+# python-pptx
+# openpyxl
