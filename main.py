@@ -28,12 +28,17 @@ load_dotenv()
 app = FastAPI()
 
 # Configure CORS (Allow Frontend to Access Backend)
+ALLOWED_ORIGINS = [
+    "https://data-flex-psi.vercel.app",  # ✅ Allow requests from Vercel frontend
+    "http://localhost:3000",  # ✅ Allow local frontend for testing
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change to specific origins in production
+    allow_origins=ALLOWED_ORIGINS,  # Only allow specific origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],  # Limit to required methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 # Load environment variables
