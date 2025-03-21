@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 import shutil
 import tempfile
 import logging
-import pickle
 import uvicorn
 
 # ---------------------------
@@ -27,55 +26,41 @@ load_dotenv()
 # Initialize FastAPI
 app = FastAPI()
 
-# Configure CORS (Allow Frontend to Access Backend)
+# Configure CORS to allow requests from Vercel frontend
 ALLOWED_ORIGINS = [
-    "https://data-flex-psi.vercel.app",  # ✅ Allow requests from Vercel frontend
-    "http://localhost:3000",  # ✅ Allow local frontend for testing
+    "https://data-flex-psi.vercel.app",  # ✅ Your deployed frontend
+    "http://localhost:3000",             # ✅ Local dev frontend
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,  # Only allow specific origins
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST"],  # Limit to required methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
 )
 
 # Load environment variables
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-PORT = int(os.getenv("PORT", 8000))  # Render dynamically assigns a port
+PORT = int(os.getenv("PORT", 8000))  # Render assigns this in deployment
 
 if not GOOGLE_API_KEY:
-    logger.error("GOOGLE_API_KEY is missing in environment variables!")
-    raise RuntimeError("GOOGLE_API_KEY is required. Please set it in Render.com environment variables.")
+    logger.error("GOOGLE_API_KEY is missing!")
+    raise RuntimeError("Please set GOOGLE_API_KEY in environment variables.")
 
-# Initialize Google Generative AI LLM
+# Initialize Gemini Pro LLM
 try:
     llm = GoogleGenerativeAI(model="gemini-pro", google_api_key=GOOGLE_API_KEY)
     logger.info("Google Generative AI initialized successfully.")
 except Exception as e:
     logger.error(f"Failed to initialize Google Generative AI: {e}")
-    raise RuntimeError("Failed to initialize AI model.")
+    raise RuntimeError("LLM initialization failed.")
 
-# Persistent Index Storage
-INDEX_FILE = "index.pkl"
-
-def load_index():
-    """Load index from persistent storage."""
-    if os.path.exists(INDEX_FILE):
-        with open(INDEX_FILE, "rb") as f:
-            return pickle.load(f)
-    return None
-
-def save_index(index):
-    """Save index to persistent storage."""
-    with open(INDEX_FILE, "wb") as f:
-        pickle.dump(index, f)
-
-index = load_index()
+# Global index variable (in-memory)
+index = None
 
 # ---------------------------
-# 2. Define Pydantic Models
+# 2. Pydantic Models
 # ---------------------------
 
 class QueryRequest(BaseModel):
@@ -88,51 +73,55 @@ class QueryRequest(BaseModel):
 
 @app.get("/health/")
 async def health_check():
-    """Check if API is running."""
     return {"status": "API is running"}
 
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...)):
-    """Upload file, process text, create embeddings, and build the index."""
+    """
+    Uploads a file, reads its content, splits it, embeds it, and creates an in-memory index.
+    """
     global index
     tmp_path = None
-    
+
     try:
-        # Save uploaded file temporarily
+        # Save the uploaded file temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
             shutil.copyfileobj(file.file, tmp)
             tmp_path = tmp.name
-        
-        # Load file content
-        loader = TextLoader(tmp_path)
-        text = loader.load()
-        if not text:
-            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-        # Create text splitter and embeddings
+        # Load file using TextLoader
+        loader = TextLoader(tmp_path)
+        docs = loader.load()
+
+        if not docs or len(docs) == 0:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty or unreadable.")
+
+        # Create text splitter and embedding model
         text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         embedding = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=GOOGLE_API_KEY)
 
-        # Create index
+        # Create index from document loader
         index_creator = VectorstoreIndexCreator(embedding=embedding, text_splitter=text_splitter)
         index = index_creator.from_loaders([loader])
 
-        # Save index
-        save_index(index)
+        logger.info("Index created and stored in memory.")
 
         return {"message": "File uploaded and index created successfully"}
-    
+
     except Exception as e:
         logger.error(f"Upload Error: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
-    
+
     finally:
+        # Clean up temp file
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
 
 @app.post("/query/")
 async def query_index(request: QueryRequest):
-    """Process a query and return AI-generated response."""
+    """
+    Accepts a prompt, queries the in-memory index, and returns the response.
+    """
     global index
     if index is None:
         raise HTTPException(status_code=400, detail="Index not initialized. Upload a file first.")
@@ -140,13 +129,12 @@ async def query_index(request: QueryRequest):
     try:
         response = index.query(request.prompt, llm=llm)
         return {"response": response}
-    
     except Exception as e:
         logger.error(f"Query Error: {e}")
         raise HTTPException(status_code=500, detail="Error processing query.")
 
 # ---------------------------
-# 4. Start Server for Render Deployment
+# 4. Run on Render (0.0.0.0 + $PORT)
 # ---------------------------
 
 if __name__ == "__main__":
